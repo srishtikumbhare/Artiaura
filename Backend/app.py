@@ -1,11 +1,12 @@
 # app.py
-import os
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # Import CORS
 from datetime import datetime
 import feedparser
 from dateutil import parser
 from dotenv import load_dotenv
 from newsapi import NewsApiClient
+import os
 
 # Load environment variables
 load_dotenv()
@@ -16,6 +17,7 @@ if not api_key:
 # Initialize NewsApiClient
 newsapi = NewsApiClient(api_key=api_key)
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 def format_date(date_str):
     try:
