@@ -60,7 +60,8 @@ def get_news():
                 "title": article["title"],
                 "source": article["source"]["name"],
                 "published": format_date(article["publishedAt"]),
-                "link": article["url"]
+                "link": article["url"],
+                "image": article["urlToImage"]  # Include the image URL
             }
             for article in all_articles
         ],
