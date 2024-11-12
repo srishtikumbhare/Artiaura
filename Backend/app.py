@@ -1,72 +1,140 @@
-#app.py
-import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import sqlite3
 from transformers import pipeline
 from newsapi import NewsApiClient
-from dotenv import load_dotenv
-import torch
+import json
 
-# Load environment variables
-load_dotenv()
-api_key = os.getenv('NEWSAPI_KEY')
-if not api_key:
-    raise ValueError("API key not found. Please set the NEWSAPI_KEY environment variable.")
-
-# Initialize app and CORS
+# Initialize Flask app
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 
-# Initialize NewsApiClient and Sentiment Analyzer
-newsapi = NewsApiClient(api_key=api_key)
+# Initialize external services
+newsapi = NewsApiClient(api_key="a066ab8e14384987b43ee3e052e8c9f3")
 sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
 # Keywords for each mood
 keywords = {
-    "focused": ["research", "analysis", "report", "study", "business", "economics"],
-    "relaxed": ["lifestyle", "entertainment", "vacation", "food", "wellness"],
-    "curious": ["discovery", "mystery", "science", "history", "space"],
+    "focused": ["research", "analysis", "business"],
+    "relaxed": ["lifestyle", "entertainment", "vacation"],
+    "curious": ["discovery", "science", "history"],
 }
 
+# Database setup to store user preferences
+def setup_database():
+    conn = sqlite3.connect("user_preferences.db")
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            user_id TEXT PRIMARY KEY,
+            preferences TEXT  -- Store as JSON string for simplicity
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# Analyze sentiment of the article text
 def analyze_sentiment(text):
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
-    sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english", device=0 if device == "mps" else -1)
     try:
         result = sentiment_analyzer(text[:512])
-        sentiment = result[0]['label'].lower()
-        return sentiment
-    except Exception:
+        return result[0]['label'].lower()
+    except Exception as e:
+        print(f"Error analyzing sentiment: {e}")
         return "neutral"
 
-def fetch_articles(mood):
-    mood_keywords = keywords.get(mood, [])
+# Fetch personalized articles based on user preferences and mood
+def fetch_personalized_articles(user_id, mood):
+    # Get user-specific keywords or default mood keywords if no preference is found
+    user_preferences = get_user_preferences(user_id)
+    mood_keywords = user_preferences.get(mood, keywords[mood])  # Use user-specific keywords or default
+
     articles = []
-    query = " OR ".join(mood_keywords[:10])  # Fetch based on keywords
-    try:
+    for chunk in [mood_keywords[i:i+5] for i in range(0, len(mood_keywords), 5)]:  # Limit query length
+        query = " OR ".join(chunk)
         response = newsapi.get_everything(q=query, language='en', sort_by='relevancy')
-        for article in response['articles']:
-            sentiment = analyze_sentiment(article.get('description', '') or article.get('content', ''))
+        
+        for article in response.get('articles', []):
+            # Filter out articles with missing essential fields
+            if not article.get('title') or not article.get('source', {}).get('name') or not article.get('url') or not article.get('urlToImage'):
+                continue  # Skip this article if title, source, or link is missing
+            
+            # Check if the article's description/content is available for sentiment analysis
+            sentiment_text = article.get('description') or article.get('content')
+            if not sentiment_text:
+                continue  # Skip this article if no text is available for sentiment analysis
+
+            # Analyze sentiment and append article if it meets all criteria
+            sentiment = analyze_sentiment(sentiment_text)
             articles.append({
                 "title": article["title"],
                 "source": article["source"]["name"],
-                "published": article["publishedAt"],
+                "sentiment": sentiment,
                 "link": article["url"],
-                "image": article.get("urlToImage", ""),
-                "sentiment": sentiment
+                "image": article.get("urlToImage", ""),  # Allow empty image, but it can be handled in frontend
             })
-    except Exception as e:
-        print(f"Error fetching articles: {e}")
-    
+
     return articles
 
-@app.route('/api/mood_articles', methods=['GET'])
-def get_mood_articles():
+# Root route for testing if the server is running
+@app.route('/')
+def home():
+    return "Backend is running!", 200
+
+# Endpoint to fetch personalized articles
+@app.route('/api/personalized_articles', methods=['GET'])
+def get_personalized_articles():
+    user_id = request.args.get("user_id")
     mood = request.args.get("mood", "focused")
-    if mood not in keywords:
-        return jsonify({"error": "Invalid mood parameter"}), 400
+    
+    if not user_id or mood not in keywords:
+        return jsonify({"error": "Invalid user_id or mood parameter"}), 400
 
-    articles = fetch_articles(mood)
-    return jsonify({"articles": articles if articles else []})
+    articles = fetch_personalized_articles(user_id, mood)
+    return jsonify({"articles": articles})
 
+# Endpoint to update user preferences
+@app.route('/api/update_preferences', methods=['POST'])
+def update_preferences():
+    data = request.json
+    user_id = data.get("user_id")
+    mood = data.get("mood")
+    keywords = data.get("keywords")  # List of keywords/topics related to the article
+
+    if not user_id or not keywords:
+        return jsonify({"error": "Invalid data"}), 400
+
+    # Fetch existing preferences or create a new one
+    user_preferences = get_user_preferences(user_id)
+    if mood in user_preferences:
+        user_preferences[mood].extend(keywords)  # Add keywords to existing mood category
+    else:
+        user_preferences[mood] = keywords  # Initialize mood with keywords if not present
+
+    # Save updated preferences in the database
+    update_user_preferences(user_id, user_preferences)
+    return jsonify({"message": "Preferences updated successfully"})
+
+# Utility function to get user preferences from the database
+def get_user_preferences(user_id):
+    conn = sqlite3.connect("user_preferences.db")
+    c = conn.cursor()
+    c.execute("SELECT preferences FROM user_preferences WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    return json.loads(row[0]) if row else {}
+
+# Utility function to update user preferences in the database
+def update_user_preferences(user_id, preferences):
+    conn = sqlite3.connect("user_preferences.db")
+    c = conn.cursor()
+    c.execute("REPLACE INTO user_preferences (user_id, preferences) VALUES (?, ?)", (user_id, json.dumps(preferences)))
+    conn.commit()
+    conn.close()
+
+# Run the application
 if __name__ == '__main__':
-    app.run(debug=False)
+    setup_database()  # Initialize the database when the app starts
+    print("Defined routes:")
+    for rule in app.url_map.iter_rules():
+        print(rule)
+    app.run(debug=True)

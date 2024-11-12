@@ -1,3 +1,4 @@
+// app/dashboard/page.js
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -9,30 +10,30 @@ import { useUser } from '@clerk/nextjs';
 export default function Dashboard() {
     const { user } = useUser();
     const userName = user ? user.firstName : "User";
+    const userId = user ? user.id : null;  // Ensure user ID is available
 
     const [articles, setArticles] = useState([]);
-    const [mood, setMood] = useState('');
+    const [mood, setMood] = useState('focused');  // Default mood
 
-    useEffect(() => {
-        const fetchArticles = async () => {
-            const query = mood || 'focused';
-            try {
-                const response = await fetch(`http://127.0.0.1:5000/api/mood_articles?mood=${query}`);
-                if (!response.ok) throw new Error("Network response was not ok");
+    // Function to fetch articles based on mood and userId
+    const fetchArticles = async () => {
+        try {
+            if (!userId || !mood) return;  // Ensure userId and mood are defined
 
-                const data = await response.json();
-                console.log("Fetched data:", data); // Debugging output
-                setArticles(data.articles || []); // Set articles if data is returned
-            } catch (error) {
-                console.error("Error fetching articles:", error);
-                setArticles([]); // Set articles to empty array if there's an error
-            }
-        };
+            const response = await fetch(`http://127.0.0.1:5000/api/personalized_articles?user_id=${userId}&mood=${mood}`);
+            if (!response.ok) throw new Error("Failed to fetch articles");
 
-        if (mood) {
-            fetchArticles();
+            const data = await response.json();
+            setArticles(data.articles || []);
+        } catch (error) {
+            console.error("Error fetching articles:", error);
         }
-    }, [mood]);
+    };
+
+    // Fetch articles when the mood changes or on initial load
+    useEffect(() => {
+        fetchArticles();
+    }, [mood, userId]);
 
     return (
         <div className={styles.dashboardContainer}>
@@ -43,7 +44,7 @@ export default function Dashboard() {
             <div className={styles.dashboardContent}>
                 <section className={styles.generalArticles}>
                     <h2 className={styles.sectionTitle}>Your Articles</h2>
-                    <ArticleList articles={articles} />
+                    <ArticleList articles={articles} userId={userId} mood={mood} />
                 </section>
             </div>
         </div>
