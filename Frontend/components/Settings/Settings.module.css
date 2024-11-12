@@ -1,0 +1,32 @@
+/* Settings.module.css */
+
+.settingsContainer {
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.settingsTitle {
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+.section {
+    margin-bottom: 20px;
+}
+
+.themeToggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Dark and light mode styles */
+.dark {
+    background-color: #333;
+    color: #fff;
+}
+
+.light {
+    background-color: #fff;
+    color: #000;
+}

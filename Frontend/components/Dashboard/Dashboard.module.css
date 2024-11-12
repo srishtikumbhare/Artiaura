@@ -1,0 +1,67 @@
+.dashboardContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.dashboardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.articleList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    /* Responsive columns */
+    gap: 20px;
+}
+
+.articleItem {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.articleImage {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.articleTitle {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.articleSource,
+.articleDate,
+.articleSentiment {
+    font-size: 0.9em;
+    color: #555;
+    margin: 5px 0;
+}
+
+.articleLink {
+    color: #6200ea;
+    font-weight: bold;
+    text-decoration: none;
+    margin-top: auto;
+}
+
+.placeholder {
+    text-align: center;
+    color: #777;
+    font-size: 1.1em;
+}

@@ -1,0 +1,38 @@
+/* Base Styles */
+body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme='light'] {
+    --bg-color: #ffffff;
+    --text-color: #333;
+    --header-bg-color: rgba(101, 72, 242, 0.1);
+    --button-bg-color: rgb(101, 72, 242);
+    --button-text-color: #ffffff;
+}
+
+[data-theme='dark'] {
+    --bg-color: #333333;
+    --text-color: #ffffff;
+    --header-bg-color: rgba(0, 0, 0, 0.5);
+    --button-bg-color: #666666;
+    --button-text-color: #ffffff;
+}
+
+/* Apply theme variables */
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.header {
+    background-color: var(--header-bg-color);
+}
+
+button {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+}

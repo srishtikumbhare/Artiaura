@@ -1,0 +1,55 @@
+/* app/settings/Settings.module.css */
+
+.settingsContainer {
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    border-radius: 8px;
+    border: 1px solid var(--container-border);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.settingsSection {
+    margin-bottom: 20px;
+    padding: 20px;
+    background-color: var(--container-bg);
+    /* Use container background color */
+    color: var(--text-color);
+    /* Ensure text color is readable */
+    border-radius: 5px;
+    border: 1px solid var(--container-border);
+    /* Use container border color */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.switchLabel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 16px;
+    color: var(--text-color);
+    /* Ensure label text is readable */
+}
+
+.saveButton {
+    padding: 10px 20px;
+    background-color: var(--text-color);
+    color: var(--background-color);
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.saveButton:hover {
+    background-color: var(--container-border);
+    /* Adjust hover color for contrast */
+}
+
+.saveMessage {
+    margin-top: 10px;
+    color: green;
+    font-weight: bold;
+}
