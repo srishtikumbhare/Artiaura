@@ -1,12 +1,11 @@
-# app.py
-from flask import Flask, request, jsonify
-from flask_cors import CORS  # Import CORS
-from datetime import datetime
-import feedparser
-from dateutil import parser
-from dotenv import load_dotenv
-from newsapi import NewsApiClient
+#app.py
 import os
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from transformers import pipeline
+from newsapi import NewsApiClient
+from dotenv import load_dotenv
+import torch
 
 # Load environment variables
 load_dotenv()
@@ -14,60 +13,60 @@ api_key = os.getenv('NEWSAPI_KEY')
 if not api_key:
     raise ValueError("API key not found. Please set the NEWSAPI_KEY environment variable.")
 
-# Initialize NewsApiClient
-newsapi = NewsApiClient(api_key=api_key)
+# Initialize app and CORS
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 
-def format_date(date_str):
+# Initialize NewsApiClient and Sentiment Analyzer
+newsapi = NewsApiClient(api_key=api_key)
+sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+
+# Keywords for each mood
+keywords = {
+    "focused": ["research", "analysis", "report", "study", "business", "economics"],
+    "relaxed": ["lifestyle", "entertainment", "vacation", "food", "wellness"],
+    "curious": ["discovery", "mystery", "science", "history", "space"],
+}
+
+def analyze_sentiment(text):
+    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english", device=0 if device == "mps" else -1)
     try:
-        date_obj = parser.parse(date_str)
-        return date_obj.strftime("%d/%m/%y %H:%M")
-    except (ValueError, TypeError):
-        return "Invalid date format"
+        result = sentiment_analyzer(text[:512])
+        sentiment = result[0]['label'].lower()
+        return sentiment
+    except Exception:
+        return "neutral"
 
-def fetch_news_from_newsapi(user_query):
-    all_articles = newsapi.get_everything(q=user_query, language='en', sort_by='relevancy')
-    return all_articles['articles'][:10]
-
-def fetch_news_from_rss(rss_urls, user_query):
-    rss_articles = []
-    for url in rss_urls:
-        feed = feedparser.parse(url)
-        for entry in feed.entries[:30]:  
-            if user_query.lower() in entry.title.lower() or (hasattr(entry, 'summary') and user_query.lower() in entry.summary.lower()):
-                published = entry.published if 'published' in entry else 'No date available'
-                formatted_date = format_date(published) if published != 'No date available' else published
-                rss_articles.append({
-                    'title': entry.title,
-                    'source': feed.feed.title if 'title' in feed.feed else 'Unknown Source',
-                    'published': formatted_date,
-                    'link': entry.link,
-                })
-    return rss_articles
-
-@app.route('/api/news', methods=['GET'])
-def get_news():
-    user_query = request.args.get('query', default='latest news', type=str)  # Default to 'latest news' if empty
-    rss_urls = ['https://www.indiatoday.in/rss/1206578']
-    all_articles = fetch_news_from_newsapi(user_query)
-    rss_articles = fetch_news_from_rss(rss_urls, user_query)
-
-    # Format articles to include only necessary data
-    formatted_articles = {
-        "newsapi": [
-            {
+def fetch_articles(mood):
+    mood_keywords = keywords.get(mood, [])
+    articles = []
+    query = " OR ".join(mood_keywords[:10])  # Fetch based on keywords
+    try:
+        response = newsapi.get_everything(q=query, language='en', sort_by='relevancy')
+        for article in response['articles']:
+            sentiment = analyze_sentiment(article.get('description', '') or article.get('content', ''))
+            articles.append({
                 "title": article["title"],
                 "source": article["source"]["name"],
-                "published": format_date(article["publishedAt"]),
+                "published": article["publishedAt"],
                 "link": article["url"],
-                "image": article["urlToImage"]  # Include the image URL
-            }
-            for article in all_articles
-        ],
-        "rss": rss_articles
-    }
-    return jsonify(formatted_articles)
+                "image": article.get("urlToImage", ""),
+                "sentiment": sentiment
+            })
+    except Exception as e:
+        print(f"Error fetching articles: {e}")
+    
+    return articles
+
+@app.route('/api/mood_articles', methods=['GET'])
+def get_mood_articles():
+    mood = request.args.get("mood", "focused")
+    if mood not in keywords:
+        return jsonify({"error": "Invalid mood parameter"}), 400
+
+    articles = fetch_articles(mood)
+    return jsonify({"articles": articles if articles else []})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
