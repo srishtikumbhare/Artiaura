@@ -4,16 +4,23 @@ import sqlite3
 from transformers import pipeline
 from newsapi import NewsApiClient
 import json
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 
-import os
-from dotenv import load_dotenv
-MY_ENV_VAR = os.getenv('NEWSAPI_KEY')
+
+NEWSAPI_KEY = os.getenv('NEWSAPI_KEY')
+if not NEWSAPI_KEY:
+    raise ValueError("Missing NewsAPI key. Make sure NEWSAPI_KEY is set in the environment.")
+
 # Initialize external services
-newsapi = NewsApiClient(api_key="MY_ENV_VAR")
+newsapi = NewsApiClient(api_key=NEWSAPI_KEY)
 sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
 # Keywords for each mood
@@ -141,6 +148,3 @@ if __name__ == '__main__':
     for rule in app.url_map.iter_rules():
         print(rule)
     app.run(debug=True)
-
-
-app = app
