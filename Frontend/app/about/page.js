@@ -1,7 +1,7 @@
 // app/about/page.js
 import React from 'react';
 import { FaLightbulb, FaRocket, FaBookReader } from 'react-icons/fa';
-import './About.css'; // Make sure the path is correct
+import './about.css'; // Make sure the path is correct
 
 const About = () => {
     return (
