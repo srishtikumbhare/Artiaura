@@ -67,9 +67,9 @@
 }
 
 .articleLink {
-    display: inline-block;
-    margin-top: 10px;
-    padding: 8px 16px;
+    display: block;
+    margin-top: 8px;
+    padding: 6px 10px;
     color: #ffffff;
     background-color: #007bff;
     text-decoration: none;
