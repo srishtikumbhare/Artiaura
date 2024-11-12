@@ -9,8 +9,11 @@ import json
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 
+import os
+from dotenv import load_dotenv
+MY_ENV_VAR = os.getenv('NEWSAPI_KEY')
 # Initialize external services
-newsapi = NewsApiClient(api_key="a066ab8e14384987b43ee3e052e8c9f3")
+newsapi = NewsApiClient(api_key="MY_ENV_VAR")
 sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
 # Keywords for each mood
